@@ -45,6 +45,11 @@ input[type=password], input[type=text], input[type=url], input[type=search], inp
 }
 input:focus { border-color: var(--accent); }
 
+.auth-tabs { display: flex; background: var(--bg2); border-radius: 12px; padding: 4px; gap: 4px; }
+.auth-tab { flex: 1; padding: 10px; border-radius: 9px; font-weight: 600; color: var(--muted); }
+.auth-tab.active { background: var(--bg3); color: var(--fg); }
+.login-box p.small { margin: 0; text-align: left; }
+
 .btn { padding: 14px 18px; border-radius: 12px; font-weight: 600; background: var(--bg3); }
 .btn.primary { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #111; }
 .btn:disabled { opacity: .5; }

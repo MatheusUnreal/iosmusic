@@ -26,9 +26,16 @@
           <input id="cfg-url" type="url" placeholder="URL do Supabase (https://xxxx.supabase.co)" autocomplete="off">
           <input id="cfg-key" type="text" placeholder="Chave anon/public do Supabase" autocomplete="off">
         </div>
-        <input id="login-email" type="email" placeholder="E-mail" autocomplete="username" required>
-        <input id="login-pass" type="password" placeholder="Senha" autocomplete="current-password" required>
-        <button class="btn primary" type="submit">Entrar</button>
+        <div class="auth-tabs" role="tablist">
+          <button type="button" class="auth-tab active" data-mode="login" role="tab">Entrar</button>
+          <button type="button" class="auth-tab" data-mode="signup" role="tab">Criar conta</button>
+        </div>
+        <input id="login-user" type="text" placeholder="Nome de usuário" autocomplete="username"
+               autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="20" required>
+        <input id="login-pass" type="password" placeholder="Senha" autocomplete="current-password" minlength="6" required>
+        <input id="login-pass2" type="password" placeholder="Repita a senha" autocomplete="new-password" class="hidden">
+        <p id="login-hint" class="muted small hidden">Use 3 a 20 letras minúsculas, números, ponto ou _. A senha precisa ter pelo menos 6 caracteres.</p>
+        <button class="btn primary" type="submit" id="login-btn">Entrar</button>
         <p id="login-err" class="err"></p>
       </form>
     </div>

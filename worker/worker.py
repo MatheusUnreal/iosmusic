@@ -124,7 +124,8 @@ def expand_playlist(job):
             continue
         if not u.startswith("http") and ent.get("ie_key") == "Youtube":
             u = f"https://www.youtube.com/watch?v={u}"
-        rows.append({"url": u, "title": ent.get("title"), "playlist_id": job.get("playlist_id")})
+        rows.append({"url": u, "title": ent.get("title"), "playlist_id": job.get("playlist_id"),
+                     "user_id": job["user_id"]})
     if rows:
         rest("POST", "jobs", json=rows)
     update_job(job["id"], status="done", progress=100, title=info.get("title") or job["url"],
@@ -169,7 +170,8 @@ def process(job):
             info = ydl.extract_info(job["url"], download=True)
 
         source_id = f'{info.get("extractor_key", "x")}:{info.get("id")}'
-        found = rest("GET", f"tracks?source_id=eq.{requests.utils.quote(source_id, safe='')}&select=id,title")
+        found = rest("GET", f"tracks?user_id=eq.{job['user_id']}"
+                     f"&source_id=eq.{requests.utils.quote(source_id, safe='')}&select=id,title")
         if found:
             add_to_playlist(job.get("playlist_id"), found[0]["id"])
             update_job(jid, status="done", title=found[0]["title"], track_id=found[0]["id"],
@@ -196,7 +198,7 @@ def process(job):
                   or info.get("channel") or "").removesuffix(" - Topic")
         title = info.get("track") or info.get("title") or "Sem título"
         rest("POST", "tracks", json={
-            "id": tid, "title": title, "artist": artist,
+            "id": tid, "user_id": job["user_id"], "title": title, "artist": artist,
             "album": info.get("album") or "",
             "duration": int(info.get("duration") or 0),
             "source_url": info.get("webpage_url") or job["url"],

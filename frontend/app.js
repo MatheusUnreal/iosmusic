@@ -106,23 +106,80 @@ function showLogin() {
 }
 async function logout() {
   try { await sb?.auth.signOut(); } catch {}
-  store.del('lib'); store.del('urls'); store.del('player');
+  // Outra pessoa pode entrar neste aparelho: limpa tudo da conta anterior
+  store.del('lib'); store.del('urls'); store.del('player'); store.del('offline');
+  try { await caches.delete(AUDIO_CACHE); } catch {}
   location.reload();
 }
+
+// Login só com nome de usuário: por baixo vira "usuario@iosmusic.app" (nenhum e-mail é enviado)
+const USER_DOMAIN = 'iosmusic.app';
+const USER_RE = /^[a-z0-9_.]{3,20}$/;
+const userEmail = (u) => `${u}@${USER_DOMAIN}`;
+let authMode = 'login';
+
+function setAuthMode(mode) {
+  authMode = mode;
+  document.querySelectorAll('.auth-tab').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
+  const signup = mode === 'signup';
+  $('#login-pass2').classList.toggle('hidden', !signup);
+  $('#login-pass2').required = signup;
+  $('#login-hint').classList.toggle('hidden', !signup);
+  $('#login-pass').autocomplete = signup ? 'new-password' : 'current-password';
+  $('#login-btn').textContent = signup ? 'Criar conta' : 'Entrar';
+  $('#login-err').textContent = '';
+}
+document.querySelectorAll('.auth-tab').forEach((b) => b.addEventListener('click', () => setAuthMode(b.dataset.mode)));
+$('#login-user').addEventListener('input', (e) => { e.target.value = e.target.value.toLowerCase().replace(/\s/g, ''); });
+
+function authErro(error) {
+  const m = (error && (error.message || error.code)) || 'Erro';
+  if (/Invalid login credentials/i.test(m)) return 'Usuário ou senha incorretos';
+  if (/already registered|already exists|user_already_exists/i.test(m)) return 'Esse nome de usuário já existe. Escolha outro.';
+  if (/Password should be at least|weak_password/i.test(m)) return 'A senha precisa ter pelo menos 6 caracteres';
+  if (/Signups not allowed|signup_disabled/i.test(m)) return 'A criação de contas está desativada';
+  if (/rate limit|too many/i.test(m)) return 'Muitas tentativas. Espere um pouco e tente de novo.';
+  if (/Failed to fetch|NetworkError/i.test(m)) return 'Sem conexão com a internet';
+  return m;
+}
+
 $('#login-form').addEventListener('submit', async (e) => {
   e.preventDefault();
-  $('#login-err').textContent = '';
+  const err = $('#login-err'); const btn = $('#login-btn');
+  err.textContent = '';
   try {
     if (!(CFG.supabaseUrl && CFG.supabaseAnonKey)) {
       sbUrl = $('#cfg-url').value.trim().replace(/\/+$/, ''); sbKey = $('#cfg-key').value.trim();
       if (!sbUrl || !sbKey) throw new Error('Preencha a URL e a chave do Supabase');
       store.set('sbUrl', sbUrl); store.set('sbKey', sbKey);
     }
+    const user = $('#login-user').value.trim().toLowerCase();
+    const pass = $('#login-pass').value;
+    if (!USER_RE.test(user)) throw new Error('Nome de usuário inválido: use 3 a 20 letras minúsculas, números, ponto ou _');
+    if (authMode === 'signup') {
+      if (pass.length < 6) throw new Error('A senha precisa ter pelo menos 6 caracteres');
+      if (pass !== $('#login-pass2').value) throw new Error('As senhas não são iguais');
+    }
+    btn.disabled = true;
     initSb();
-    const { error } = await sb.auth.signInWithPassword({ email: $('#login-email').value.trim(), password: $('#login-pass').value });
-    if (error) throw new Error(error.message === 'Invalid login credentials' ? 'E-mail ou senha incorretos' : error.message);
+    if (authMode === 'signup') {
+      const { data, error } = await sb.auth.signUp({ email: userEmail(user), password: pass, options: { data: { username: user } } });
+      if (error) throw new Error(authErro(error));
+      if (!data.session) {
+        // Supabase devolve "sucesso" falso quando o usuário já existe (proteção contra enumeração)
+        const r = await sb.auth.signInWithPassword({ email: userEmail(user), password: pass });
+        if (r.error) throw new Error('Esse nome de usuário já existe. Escolha outro.');
+      }
+      toast(`Conta criada! Bem-vindo, ${user}`);
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email: userEmail(user), password: pass });
+      if (error) throw new Error(authErro(error));
+    }
+    store.del('lib'); store.del('urls'); store.del('player');
+    lib = { tracks: [], playlists: [] }; indexLib();
     start();
-  } catch (err) { $('#login-err').textContent = err.message; }
+  } catch (e2) { err.textContent = e2.message; }
+  finally { btn.disabled = false; }
 });
 
 /* ------------------------------------------------------------------ navegação */
@@ -258,7 +315,7 @@ function addView() {
       <p class="err" id="add-err"></p>
     </form>
     <div class="jobs" id="jobs">${jobsHtml()}</div>
-    <div style="text-align:center;margin-top:36px"><button class="chip" data-act="logout">Sair da conta</button></div>`;
+    <div style="text-align:center;margin-top:36px"><div class="muted small" style="margin-bottom:10px">Conectado como <b>${esc(currentUser)}</b></div><button class="chip" data-act="logout">Sair da conta</button></div>`;
 }
 function jobsHtml() {
   if (!jobs.length) return '';
@@ -345,8 +402,9 @@ async function deleteTrack(t) {
   for (const p of lib.playlists.filter((x) => x.track_ids.includes(t.id))) {
     await q(sb.from('playlists').update({ track_ids: p.track_ids.filter((i) => i !== t.id) }).eq('id', p.id));
   }
-  await q(sb.from('tracks').delete().eq('id', t.id));
+  // primeiro o arquivo: a regra de segurança só libera arquivos de músicas que ainda existem
   await q(sb.storage.from(BUCKET).remove([t.audio_path, t.cover_path].filter(Boolean)));
+  await q(sb.from('tracks').delete().eq('id', t.id));
   removeOffline(t.id, true);
   await refreshLib();
 }
@@ -629,7 +687,13 @@ document.addEventListener('visibilitychange', () => {
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 
-function start() {
+let currentUser = '';
+async function start() {
+  try {
+    const { data } = await sb.auth.getSession();
+    const u = data.session?.user;
+    currentUser = u?.user_metadata?.username || (u?.email || '').split('@')[0];
+  } catch {}
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   render();
   if (curTrack()) { updateNowPlaying(); $('#btn-shuffle').classList.toggle('on', P.shuffle); updateRepeat(); }
