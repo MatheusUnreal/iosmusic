@@ -100,6 +100,8 @@ async function refreshLib() {
 /* ------------------------------------------------------------------ login */
 function showLogin() {
   $('#app').classList.add('hidden'); $('#login').classList.remove('hidden');
+  const last = store.get('lastUser', '');
+  if (last && !$('#login-user').value) { $('#login-user').value = last; }
   const configured = !!(CFG.supabaseUrl && CFG.supabaseAnonKey);
   $('#cfg-fields').classList.toggle('hidden', configured);
   if (!configured) { $('#cfg-url').value = sbUrl; $('#cfg-key').value = sbKey; }
@@ -175,6 +177,7 @@ $('#login-form').addEventListener('submit', async (e) => {
       const { error } = await sb.auth.signInWithPassword({ email: userEmail(user), password: pass });
       if (error) throw new Error(authErro(error));
     }
+    store.set('lastUser', user);
     store.del('lib'); store.del('urls'); store.del('player');
     lib = { tracks: [], playlists: [] }; indexLib();
     start();
@@ -405,7 +408,7 @@ async function deleteTrack(t) {
   // primeiro o arquivo: a regra de segurança só libera arquivos de músicas que ainda existem
   await q(sb.storage.from(BUCKET).remove([t.audio_path, t.cover_path].filter(Boolean)));
   await q(sb.from('tracks').delete().eq('id', t.id));
-  removeOffline(t.id, true);
+  removeOffline(t.id, true, false);
   await refreshLib();
 }
 
@@ -474,8 +477,11 @@ async function savePl(id, fields) { await q(sb.from('playlists').update(fields).
 
 /* ------------------------------------------------------------------ offline (Cache API) */
 const offKey = (id) => rel(`offline/${id}`);
-async function saveOffline(t, quiet = false) {
-  if (!('caches' in window)) { toast('Seu navegador não suporta offline'); return; }
+// Marca na nuvem quais músicas o usuário quer no iPhone (volta sozinho ao entrar de novo)
+function markCloud(id, on) { sb?.from('tracks').update({ offline: on }).eq('id', id).then(() => {}, () => {}); if (T[id]) T[id].offline = on; }
+
+async function saveOffline(t, quiet = false, cloud = true) {
+  if (!('caches' in window)) { toast('Seu navegador não suporta offline'); return false; }
   if (!quiet) toast('Baixando para o iPhone…');
   try {
     const res = await fetch(t.audio_url);
@@ -487,16 +493,35 @@ async function saveOffline(t, quiet = false) {
       try { const cr = await fetch(t.cover_url); if (cr.ok) await c.put(rel(`offline-cover/${t.id}`), new Response(await cr.blob(), { headers: { 'Content-Type': 'image/jpeg' } })); } catch {}
     }
     offline.add(t.id); store.set('offline', [...offline]);
+    if (cloud && !t.offline) markCloud(t.id, true);
     if (navigator.storage?.persist) navigator.storage.persist();
     if (!quiet) { toast('Disponível offline ✓'); render(); }
     updateOfflineBtn();
-  } catch (e) { toast(e.message); }
+    return true;
+  } catch (e) { if (!quiet) toast(e.message); return false; }
 }
-async function removeOffline(id, quiet) {
+async function removeOffline(id, quiet, cloud = true) {
+  if (cloud && T[id]?.offline) markCloud(id, false);
   try { const c = await caches.open(AUDIO_CACHE); await c.delete(offKey(id)); await c.delete(rel(`offline-cover/${id}`)); } catch {}
   offline.delete(id); store.set('offline', [...offline]);
   if (!quiet) { toast('Removida do iPhone'); render(); }
   updateOfflineBtn();
+}
+// Ao entrar (ou em outro aparelho): baixa sozinho as músicas marcadas para offline
+let syncing = false;
+async function syncOffline() {
+  if (syncing || !('caches' in window) || !navigator.onLine) return;
+  // músicas salvas antes deste recurso: registra na nuvem
+  for (const id of offline) if (T[id] && !T[id].offline) markCloud(id, true);
+  const want = lib.tracks.filter((t) => t.offline && !offline.has(t.id) && t.audio_url);
+  if (!want.length) return;
+  syncing = true;
+  toast(`Baixando ${want.length} ${want.length > 1 ? 'músicas' : 'música'} para o iPhone…`);
+  let ok = 0;
+  for (const t of want) if (await saveOffline(t, true, false)) ok++;
+  syncing = false;
+  toast(ok === want.length ? `Suas músicas offline voltaram ✓ (${ok})` : `${ok} de ${want.length} músicas baixadas para o iPhone`);
+  render();
 }
 async function offlineSrc(id) {
   const c = await caches.open(AUDIO_CACHE);
@@ -697,7 +722,7 @@ async function start() {
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
   render();
   if (curTrack()) { updateNowPlaying(); $('#btn-shuffle').classList.toggle('on', P.shuffle); updateRepeat(); }
-  refreshLib().then(() => { if (curTrack()) updateNowPlaying(); });
+  refreshLib().then((ok) => { if (curTrack()) updateNowPlaying(); if (ok) syncOffline(); });
   pollJobs();
   cleanOldJobs();
   // Atalho do iOS: abrir  .../?add=<link>  baixa direto

@@ -1,5 +1,5 @@
 // Service worker: deixa o app abrir instantâneo (e sem internet).
-const SHELL = 'iosmusic-shell-v5';
+const SHELL = 'iosmusic-shell-v6';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'config.js', 'vendor/supabase.min.js', 'manifest.json',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 
