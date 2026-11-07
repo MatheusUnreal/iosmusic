@@ -43,10 +43,10 @@ git push -u origin main
 2. **New project**: escolha um nome, crie uma senha do banco (guarde) e a região **South America (São Paulo)**.
 3. Abra **SQL Editor** → **New query**, cole **todo** o conteúdo de [`supabase/setup.sql`](supabase/setup.sql)
    e clique em **Run**.
-4. Crie seu login: **Authentication → Users → Add user → Create new user**. Use seu e-mail,
-   uma senha e marque **Auto Confirm User**.
-5. **Bloqueie novos cadastros**, para ninguém mais criar conta no seu app:
-   **Authentication → Sign In / Providers** → desative **Allow new users to sign up** → Save.
+4. Rode também [`supabase/002_usuarios.sql`](supabase/002_usuarios.sql). Ele separa os dados por conta:
+   cada usuário tem a própria biblioteca e as próprias playlists.
+5. Em **Authentication → Sign In / Providers → Email**, desative **Confirm email**. O login é só com
+   nome de usuário e senha; por baixo o app usa `usuario@iosmusic.app`, e nenhum e-mail é enviado.
 6. Pegue as chaves em **Project Settings → API Keys**:
    - **Project URL**, tipo `https://abcdxyz.supabase.co` (fica em *Project Settings → Data API*, ou no botão *Connect*)
    - chave **publishable** (`sb_publishable_...`) ou **anon**: é pública, vai no app
@@ -90,7 +90,7 @@ on conflict (key) do update set value = excluded.value;
 ## 5. Instalar no iPhone
 
 1. Abra `https://SEU-USUARIO.github.io/iosmusic/` no **Safari**.
-2. Entre com o e-mail e a senha do passo 2.4.
+2. Toque em **Criar conta**, escolha um nome de usuário e uma senha. Da próxima vez, é só **Entrar**.
 3. **Compartilhar** (quadrado com seta) → **Adicionar à Tela de Início**.
 4. Abra pelo ícone. Pronto!
 
@@ -151,6 +151,13 @@ Apague músicas que não ouve mais (`•••` → *Apagar da nuvem*). Uma mús
 - `.github/workflows/pages.yml`: publica o app no GitHub Pages.
 - `supabase/setup.sql`: tabelas, armazenamento, segurança e o gatilho que avisa o GitHub.
 - `tools/make_icons.py`: gera os ícones.
+
+## Contas
+
+- Qualquer pessoa com o link pode criar uma conta. Cada conta vê **só as próprias** músicas e playlists.
+- Todas as contas dividem o mesmo espaço grátis do Supabase (1 GB).
+- Não existe "esqueci minha senha", porque não há e-mail de verdade. Para trocar a senha de alguém, use
+  **Supabase → Authentication → Users**.
 
 ## Limitações
 
