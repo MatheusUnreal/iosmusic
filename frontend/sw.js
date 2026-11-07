@@ -1,5 +1,5 @@
 // Service worker: deixa o app abrir instantâneo (e sem internet).
-const SHELL = 'iosmusic-shell-v3';
+const SHELL = 'iosmusic-shell-v4';
 const FILES = ['./', 'index.html', 'style.css', 'app.js', 'config.js', 'vendor/supabase.min.js', 'manifest.json',
   'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 
@@ -23,11 +23,17 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // App: responde do cache e atualiza em segundo plano
+  // App: busca a versão mais nova primeiro (atualizações aparecem na hora).
+  // Sem internet ou se a rede demorar mais de 3s, usa a cópia salva.
   const key = e.request.mode === 'navigate' ? self.registration.scope : url.origin + url.pathname;
   e.respondWith(caches.open(SHELL).then(async (c) => {
-    const cached = await c.match(key);
-    const fresh = fetch(e.request).then((r) => { if (r.ok) c.put(key, r.clone()); return r; }).catch(() => cached);
-    return cached || fresh;
+    const net = fetch(e.request.url, { cache: 'no-cache' })
+      .then((r) => { if (r.ok) c.put(key, r.clone()); return r; });
+    const timeout = new Promise((res) => setTimeout(res, 3000));
+    try {
+      const r = await Promise.race([net, timeout]);
+      if (r) return r;
+    } catch { /* sem rede */ }
+    return (await c.match(key)) || net;
   }));
 });
