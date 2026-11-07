@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>IOSMusic</title>
+  <meta name="theme-color" content="#0e0e12">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="IOSMusic">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="icon" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Login -->
+  <section id="login" class="screen hidden">
+    <div class="login-box">
+      <img src="icons/icon-192.png" alt="" class="login-logo">
+      <h1>IOSMusic</h1>
+      <p class="muted">Sua música, na sua nuvem.</p>
+      <form id="login-form">
+        <div id="cfg-fields" class="hidden" style="display:grid;gap:12px">
+          <input id="cfg-url" type="url" placeholder="URL do Supabase (https://xxxx.supabase.co)" autocomplete="off">
+          <input id="cfg-key" type="text" placeholder="Chave anon/public do Supabase" autocomplete="off">
+        </div>
+        <input id="login-email" type="email" placeholder="E-mail" autocomplete="username" required>
+        <input id="login-pass" type="password" placeholder="Senha" autocomplete="current-password" required>
+        <button class="btn primary" type="submit">Entrar</button>
+        <p id="login-err" class="err"></p>
+      </form>
+    </div>
+  </section>
+
+  <!-- App -->
+  <section id="app" class="hidden">
+    <header class="topbar">
+      <button id="back-btn" class="icon-btn hidden" aria-label="Voltar">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <h1 id="view-title">Biblioteca</h1>
+      <span id="offline-badge" class="badge hidden">offline</span>
+    </header>
+
+    <main id="view"></main>
+
+    <!-- Mini player -->
+    <div id="mini" class="mini hidden">
+      <div class="mini-progress"><div id="mini-bar"></div></div>
+      <div class="mini-body">
+        <img id="mini-cover" class="cover sm" alt="">
+        <div class="mini-text">
+          <div id="mini-title" class="t1"></div>
+          <div id="mini-artist" class="t2"></div>
+        </div>
+        <button id="mini-play" class="icon-btn" aria-label="Tocar/Pausar"></button>
+        <button id="mini-next" class="icon-btn" aria-label="Próxima">
+          <svg viewBox="0 0 24 24"><path class="fill" d="M6 5l9 7-9 7zM16 5h2v14h-2z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <nav class="tabs">
+      <button data-tab="library" class="active">
+        <svg viewBox="0 0 24 24"><path d="M4 4v16M9 4v16M14 4l6 16"/></svg><span>Biblioteca</span>
+      </button>
+      <button data-tab="playlists">
+        <svg viewBox="0 0 24 24"><path d="M4 6h12M4 11h12M4 16h7M17 14v6M14 17h6"/></svg><span>Playlists</span>
+      </button>
+      <button data-tab="add">
+        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg><span>Adicionar</span>
+      </button>
+    </nav>
+  </section>
+
+  <!-- Player em tela cheia -->
+  <section id="full" class="full">
+    <div class="full-bg" id="full-bg"></div>
+    <div class="full-inner">
+      <div class="full-top">
+        <button id="full-close" class="icon-btn" aria-label="Fechar">
+          <svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
+        <span class="muted small" id="full-context">Tocando agora</span>
+        <button id="full-more" class="icon-btn" aria-label="Mais">
+          <svg viewBox="0 0 24 24"><circle class="fill" cx="5" cy="12" r="1.6"/><circle class="fill" cx="12" cy="12" r="1.6"/><circle class="fill" cx="19" cy="12" r="1.6"/></svg>
+        </button>
+      </div>
+      <img id="full-cover" class="cover xl" alt="">
+      <div class="full-meta">
+        <div id="full-title" class="t1 big"></div>
+        <div id="full-artist" class="t2"></div>
+      </div>
+      <input id="seek" type="range" min="0" max="1000" value="0" step="1">
+      <div class="times"><span id="t-cur">0:00</span><span id="t-dur">0:00</span></div>
+      <div class="controls">
+        <button id="btn-shuffle" class="icon-btn toggle" aria-label="Aleatório">
+          <svg viewBox="0 0 24 24"><path d="M3 7h3c4 0 6 10 10 10h4M3 17h3c1.5 0 2.7-1.4 3.7-3M14.3 10c1-1.6 2.2-3 3.7-3h2M17 4l3 3-3 3M17 14l3 3-3 3"/></svg>
+        </button>
+        <button id="btn-prev" class="icon-btn lg" aria-label="Anterior">
+          <svg viewBox="0 0 24 24"><path class="fill" d="M18 5l-9 7 9 7zM6 5h2v14H6z"/></svg>
+        </button>
+        <button id="btn-play" class="play-btn" aria-label="Tocar/Pausar"></button>
+        <button id="btn-next" class="icon-btn lg" aria-label="Próxima">
+          <svg viewBox="0 0 24 24"><path class="fill" d="M6 5l9 7-9 7zM16 5h2v14h-2z"/></svg>
+        </button>
+        <button id="btn-repeat" class="icon-btn toggle" aria-label="Repetir">
+          <svg viewBox="0 0 24 24"><path d="M17 3l3 3-3 3M4 11V9a3 3 0 0 1 3-3h13M7 21l-3-3 3-3M20 13v2a3 3 0 0 1-3 3H4"/></svg>
+          <span id="repeat-one" class="dot-one hidden">1</span>
+        </button>
+      </div>
+      <div class="full-bottom">
+        <button id="btn-queue" class="chip">Fila</button>
+        <button id="btn-offline" class="chip">Baixar no iPhone</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Folha de ações -->
+  <div id="sheet-wrap" class="sheet-wrap hidden">
+    <div id="sheet" class="sheet"></div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <audio id="audio" preload="auto" playsinline></audio>
+  <script src="config.js"></script>
+  <script src="vendor/supabase.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
