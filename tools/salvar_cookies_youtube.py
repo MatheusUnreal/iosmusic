@@ -1,7 +1,7 @@
 """Envia o cookies.txt do YouTube para os segredos do GitHub e apaga o arquivo do PC.
 
 Uso:
-  1. Exporte os cookies (conta Google SECUNDÁRIA) como  cookies.txt  nesta pasta do projeto.
+  1. Exporte os cookies (conta Google SECUNDÁRIA) para a pasta do projeto (qualquer nome com "cookies").
   2. python tools/salvar_cookies_youtube.py
 """
 import shutil
@@ -10,9 +10,11 @@ import sys
 from pathlib import Path
 
 REPO = "MatheusUnreal/iosmusic"
-f = Path(__file__).resolve().parent.parent / "cookies.txt"
-if not f.exists():
-    sys.exit(f"Não achei {f}. Exporte os cookies com esse nome nessa pasta.")
+root = Path(__file__).resolve().parent.parent
+# Aceita "cookies.txt" ou o nome que a extensão usa ("www.youtube.com_cookies.txt")
+f = next((p for p in [root / "cookies.txt", *sorted(root.glob("*cookies*.txt"))] if p.exists()), None)
+if not f:
+    sys.exit(f"Não achei o arquivo de cookies em {root}. Exporte os cookies do YouTube para essa pasta.")
 data = f.read_text("utf-8", errors="ignore")
 if "youtube.com" not in data:
     sys.exit("Esse arquivo não tem cookies do youtube.com. Abra o YouTube logado e exporte de novo.")
