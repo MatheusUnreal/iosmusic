@@ -72,7 +72,7 @@ def claim_next():
 
 def requeue_stuck():
     """Jobs que ficaram travados (runner caiu) voltam para a fila."""
-    limit = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+    limit = (datetime.now(timezone.utc) - timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%SZ")  # sem "+", que vira espaço na URL
     rest("PATCH", f"jobs?status=in.(downloading,converting,uploading)&updated_at=lt.{limit}",
          json={"status": "queued"})
 
